@@ -10,7 +10,7 @@ const getAllUsers = asyncWrapper(async (req, res) => {
     const limit = query.limit || 10;
     const page = query.page || 1;
     const skip = (page - 1) * limit;
-    const users = await User.find({}, { '__v': 0, 'password': 0 }).limit(limit).skip(skip);
+    const users = await User.find({}, { '__v': 0, 'password': 0, 'token': 0 }).limit(limit).skip(skip);
     res.json({ status: httpStatusText.SUCCESS, data: { users } });
 });
 
@@ -24,9 +24,13 @@ const getSingleUser = asyncWrapper(async (req, res, next) => {
     return res.json({status: httpStatusText.SUCCESS, data: { user }});
 });
 
+const deleteUser = asyncWrapper(async (req, res) => {
+    await User.deleteOne({ _id: req.params.userId });
+    return res.json({ status: httpStatusText.SUCCESS, data: null });
+});
 
 const register = asyncWrapper(async(req, res, next) => {
-    const {firstName, lastName, email, password} = req.body;
+    const {firstName, lastName, email, password, role} = req.body;
 
     const oldUser = await User.findOne({email: email});
     if (oldUser) {
@@ -41,10 +45,12 @@ const register = asyncWrapper(async(req, res, next) => {
         firstName,
         lastName,
         email,
-        password: hashedPassword
+        password: hashedPassword,
+        role,
+        avatar: req.file.filename
     });
     // generate JWT token
-    const token = await generateJWT({email: newUser.email, id: newUser._id});
+    const token = await generateJWT({email: newUser.email, id: newUser._id, role: newUser.role});
     newUser.token = token;
 
     const user = await newUser.save();
@@ -66,7 +72,7 @@ const login = asyncWrapper(async(req,res,next) => {
     const matchedPassword = await bcrypt.compare(password, user.password);
 
     if (user && matchedPassword) {
-        const token = await generateJWT({email: user.email, id: user._id});
+        const token = await generateJWT({email: user.email, id: user._id, role: user.role});
         return res.status(200).json({ status: httpStatusText.SUCCESS, data: { token } });
     } else {
         const error = appError.create("invalid email or password", 400, httpStatusText.FAIL);
@@ -78,6 +84,7 @@ const login = asyncWrapper(async(req,res,next) => {
 module.exports = {
     getAllUsers,
     getSingleUser,
+    deleteUser,
     register,
-    login
+    login,
 };

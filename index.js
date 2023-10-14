@@ -1,7 +1,10 @@
 require("dotenv").config();
 const express = require("express"); // elegant mongodb object modeling for node.js
+const path = require("path");
 const cors = require("cors");
 const app = express();
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const httpStatusText = require("./utils/httpStatusText");
 
